@@ -17,11 +17,15 @@ class Settings(BaseSettings):
     REDIS_URL: str
     RABBITMQ_URL: str
 
-    JWT_SECRET_KEY: str
+    JWT_SECRET: str
     JWT_ALGORITHM: str
 
     model_config = SettingsConfigDict(
-        env_file=os.path.join(Path(__file__).parent.parent.parent, ".env"),
+        env_file=os.path.join(
+            Path(
+                __file__
+            ).parent.parent.parent, ".env"
+        ),
         env_file_encoding="utf-8"
     )
 
