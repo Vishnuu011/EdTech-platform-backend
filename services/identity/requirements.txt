@@ -1,0 +1,16 @@
+fastapi[standard]
+uvicorn[standard]
+redis
+sqlalchemy[asyncio]
+asyncpg
+python-jose
+python-multipart
+passlib[bcrypt]
+python-dotenv
+email-validator
+pillow
+python-dateutil
+pytest
+pytest-asyncio
+pytest-cov
+httpx
