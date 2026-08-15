@@ -1,6 +1,6 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
-import os, sys
+
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -21,11 +21,7 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str
 
     model_config = SettingsConfigDict(
-        env_file=os.path.join(
-            Path(
-                __file__
-            ).parent.parent.parent, ".env"
-        ),
+        env_file=Path(__file__).parent.parent.parent / ".env",
         env_file_encoding="utf-8"
     )
 
