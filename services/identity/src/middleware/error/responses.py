@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 
 class ErrorResponse(BaseModel):
-    message: str
+    code: str
     message: str
     details: Any | None = None
     request_id: str | None = None
