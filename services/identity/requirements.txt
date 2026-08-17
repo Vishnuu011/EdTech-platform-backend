@@ -2,6 +2,7 @@ fastapi[standard]
 uvicorn[standard]
 redis
 aio-pika
+alembic
 sqlalchemy[asyncio]
 asyncpg
 python-jose

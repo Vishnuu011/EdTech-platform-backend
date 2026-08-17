@@ -29,14 +29,7 @@ router=APIRouter(
 )
 async def liveness_check(request: Request) -> Dict[str, Any]:
 
-    correlation_id=request.state.correlation_id
 
-    logger.info(
-        "live request",
-        extra={
-            "correlation_id": correlation_id
-        }
-    )
     return {
         "status": "OK"
     }
