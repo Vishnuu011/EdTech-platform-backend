@@ -7,6 +7,8 @@ from src.infrastructure.messaging.rabbitmq import rabbitmq
 from src.database.connection import engine
 from src.infrastructure.redis.client import redis_client
 from sqlalchemy import text
+from src.middleware.correlation.middlerware import CorrelationIDMiddleware
+from shared.observability.middleware import ObservabilityMiddleware
 from src.middleware.error import (
     register_exception_handlers
 )
@@ -105,6 +107,14 @@ app=FastAPI(
 
 register_exception_handlers(
     app=app
+)
+
+app.add_middleware(
+    ObservabilityMiddleware
+)
+
+app.add_middleware(
+    CorrelationIDMiddleware
 )
 
 
