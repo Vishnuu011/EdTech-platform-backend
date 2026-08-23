@@ -17,6 +17,7 @@ from shared.logging.logger import configure_logger, get_logger
 from contextlib import asynccontextmanager
 import sys
 from pathlib import Path
+from src.routers import authRouter
 
 
 configure_logger(
@@ -132,6 +133,12 @@ async def add_process_time_header(
 
 
 app.include_router(health.router)
+
+app.include_router(
+    authRouter.router,
+    prefix="/api/v1/auth",
+    tags=["Authentication"]
+)
 
 
 

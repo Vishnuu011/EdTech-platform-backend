@@ -7,7 +7,7 @@ sqlalchemy[asyncio]
 asyncpg
 python-jose
 python-multipart
-passlib[bcrypt]
+argon2-cffi
 python-dotenv
 email-validator
 pillow
