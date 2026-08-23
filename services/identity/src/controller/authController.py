@@ -27,6 +27,11 @@ class RegisterRequest(BaseModel):
         min_length=1,
         max_length=100
     )
+    phone:str | None=Field(
+        default=None,
+        min_length=7,
+        max_length=20
+    )
 
 
 class RegisterResponse(BaseModel):
@@ -68,6 +73,7 @@ async def register_identity_services_user(
     displayname=data.display_name.strip()
     user=User(
        email=email,
+       phone=data.phone,
        display_name=displayname,
        status=UserStatus.PENDING
     )
