@@ -1,0 +1,11 @@
+fastapi[standard]
+uvicorn[standard]
+aio-pika
+python-dotenv
+pydantic-settings
+python-dateutil
+pytest
+pytest-asyncio
+pytest-cov
+httpx
+python-json-logger

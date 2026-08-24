@@ -1,8 +1,9 @@
 import aio_pika
 
-from aio_pika import Connection, Channel
+from aio_pika import Connection, Channel, Message, DeliveryMode
 
 from src.config.settings import settings
+import json
 
 
 class RabbitMQClient:
@@ -27,6 +28,36 @@ class RabbitMQClient:
     async def close(self) -> None:
         if self.connection and not self.connection.is_closed:
             await self.connection.close()
+
+    async def publish(
+        self,
+        exchange_name:str,
+        routing_key:str,
+        message:dict
+    ) -> None:
+
+        if self.channel is None:
+
+            raise RuntimeError(
+                "RabbitMQ is not connected"
+            )        
+
+        exchange=await self.channel.declare_exchange(
+            exchange_name,
+            aio_pika.ExchangeType.TOPIC,
+            durable=True
+        )
+
+        body=json.dumps(message).encode()
+
+        await exchange.publish(
+            Message(
+                body=body,
+                content_type="application/json",
+                delivery_mode=DeliveryMode.PERSISTENT
+            ),
+            routing_key=routing_key
+        )
 
 
 rabbitmq = RabbitMQClient()                

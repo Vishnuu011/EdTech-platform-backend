@@ -7,6 +7,7 @@ from src.helpers.otp import (
 )
 
 from src.infrastructure.redis.client import redis_client
+from src.infrastructure.messaging.events import publish_email_verification_event
 
 
 
@@ -23,7 +24,10 @@ def get_otp_key(
     )
 
 
+
+
 async def create_otp(
+    user_id:str,
     verification_type: str,
     destination: str
 ) -> str:
@@ -45,7 +49,15 @@ async def create_otp(
         ex=OTP_EXPIRE_SECONDS
     )
 
+    await publish_email_verification_event(
+        user_id=user_id,
+        destination=destination,
+        otp=otp
+    )
+
     return otp
+
+
 
 async def check_otp(
     verification_type:str,
