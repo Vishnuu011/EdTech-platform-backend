@@ -320,7 +320,7 @@ async def refresh_access_token_identity_service(
             detail="Session is not active"
         )
 
-    if session.expires_at <= datetime.now(timezone.ntc):
+    if session.expires_at <= datetime.now(timezone.utc):
         session.status = SessionStatus.EXPIRED
 
 
@@ -357,7 +357,7 @@ async def refresh_access_token_identity_service(
     )
 
     await db.commit()
-    
+
     expires_in=ACCESS_TOKEN_EXPIRE_MINUTES*60
 
     return RefreshTokenResponse(
@@ -366,6 +366,64 @@ async def refresh_access_token_identity_service(
         token_type="bearer",
         expires_in=expires_in
     )
+
+
+
+async def logout_user_in_identity_service(
+    db:AsyncSession,
+    token:str
+) -> None:
+
+    try:
+        payload=decode_token(token=token)
+    except ValueError:
+        raise HTTPException(
+            status_code=401,
+            detail="Invblid access token"
+        )
+
+    if payload.get("type") != "access":
+
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid access token"
+        )
+
+    user_id=payload.get("sub")
+    session_id=payload.get("session_id")
+
+    if not user_id or not session_id:
+
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid access token"
+        )
+
+    result=await db.execute(
+        select(Session).where(
+            Session.id==session_id,
+            Session.user_id==user_id
+        )
+    )
+
+    session=result.scalar_one_or_none()
+
+    if session is None:
+
+        raise HTTPException(
+            status_code=401,
+            detail="session not found"
+        )
+
+    if session.status==SessionStatus.REVOKED:
+        return
+
+    session.status = SessionStatus.REVOKED
+    session.revoked_at = datetime.now(
+        timezone.utc
+    )   
+
+    await db.commit()
 
     
 
