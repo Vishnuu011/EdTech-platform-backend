@@ -5,7 +5,7 @@ sys.path.insert(
     0,
     str(Path(__file__).resolve().parents[2])
 )
-from src.controller.verification import (
+from services.identity.src.controller.verificationController import (
     create_otp,
     check_otp
 )

@@ -17,7 +17,7 @@ from shared.logging.logger import configure_logger, get_logger
 from contextlib import asynccontextmanager
 import sys
 from pathlib import Path
-from src.routers import authRouter
+from src.routers import authRouter, verificationRouter
 
 
 configure_logger(
@@ -138,6 +138,12 @@ app.include_router(
     authRouter.router,
     prefix="/api/v1/auth",
     tags=["Authentication"]
+)
+
+app.include_router(
+    verificationRouter.router,
+    prefix="/api/v1/verification",
+    tags=["Verification"]
 )
 
 
