@@ -1,6 +1,7 @@
 from src.helpers.otp import (
     OTP_EXPIRE_SECONDS,
     OTP_LENGTH,
+    OTP_RESEND_COOLDOWN_SECOND,
     hash_otp,
     verify_otp,
     generate_otp
@@ -57,6 +58,18 @@ def get_otp_key(
         f"{destination}"
     )
 
+def get_otp_cooldown_key(
+    verification_type:str,
+    destination:str
+) -> str:
+
+    return (
+        f"identity:otp:cooldown:"
+        f"{verification_type}:"
+        f"{destination}"
+    )
+
+
 
 
 
@@ -93,6 +106,8 @@ async def create_otp(
 
 
 
+
+
 async def check_otp(
     verification_type:str,
     destination:str,
@@ -124,6 +139,9 @@ async def check_otp(
 
 
 
+
+
+
 async def send_verification_Otp(
     data:SendVerificationRequest,
     db:AsyncSession
@@ -144,10 +162,42 @@ async def send_verification_Otp(
             detail="User not found"
         )
 
+    cooldown_key=get_otp_cooldown_key(
+        VerificationType.EMAIL_VERIFICATION.value,
+        user.email
+    )
+
+    if await redis_client.exists(cooldown_key):
+
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="please wait before requesting another verification code"
+        )
+
+    result=await db.execute(
+        select(Verification)
+        .where(
+            Verification.user_id==user.id,
+            Verification.type==VerificationType.EMAIL_VERIFICATION,
+            Verification.status==VerificationStatus.PENDING
+        )
+    )
+
+    pending_verification=result.scalars().all()
+
+    for verification in pending_verification:
+        verification.status=VerificationStatus.EXPIRED
+
     otp, otp_hash=await create_otp(
         user_id=str(user.id),
         verification_type=VerificationType.EMAIL_VERIFICATION.value,
         destination=user.email
+    )
+
+    await redis_client.set(
+        cooldown_key,
+        "1",
+        ex=OTP_RESEND_COOLDOWN_SECOND
     )
 
     verification = Verification(
@@ -170,6 +220,10 @@ async def send_verification_Otp(
     return SendVerificationResponse(
         message="verification code sent"
     )
+
+
+
+
 
 
 async def verify_verification(

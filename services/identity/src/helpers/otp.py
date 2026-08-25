@@ -2,6 +2,7 @@ import hashlib
 import secrets
 
 OTP_LENGTH=6
+OTP_RESEND_COOLDOWN_SECOND=60
 OTP_EXPIRE_SECONDS=300
 
 
