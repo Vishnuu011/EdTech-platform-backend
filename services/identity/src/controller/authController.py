@@ -10,9 +10,17 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domain.enums import CredentialStatus, UserStatus, SessionStatus, SessionStatus
+from src.domain.enums import (
+    CredentialStatus, 
+    UserStatus, 
+    SessionStatus, 
+    SessionStatus, 
+    VerificationStatus, 
+    VerificationType
+)
 from src.helpers.password import hash_password
 from src.models.credential import Credential
+from src.models.verification import Verification
 from src.models.user import User
 from src.models.session import Session
 
@@ -22,6 +30,15 @@ from src.helpers.jwt import (
     create_access_token,
     create_refresh_token,
     decode_token
+)
+
+from src.helpers.otp import (
+    OTP_EXPIRE_SECONDS
+)
+
+from src.controller.verificationController import (
+    create_otp,
+    check_otp
 )
 
 from src.helpers.token import hash_token, verify_token_hash
@@ -63,14 +80,27 @@ class LoginRequest(BaseModel):
         max_length=128
     )
 
-    
+class LoginVerifyRequest(BaseModel):
 
-class LoginResponse(BaseModel):
+    email:EmailStr
+    code:str=Field(
+        min_length=6,
+        max_length=6,
+        pattern=r"^\d{6}$"
+    )
+
+
+class LoginVerifyResponse(BaseModel):
 
     access_token:str
     refresh_token:str
     token_type:str
-    expries_in:int    
+    expires_in:int    
+
+class LoginResponse(BaseModel):
+
+    message:str
+    otp_required:bool   
 
 
 
@@ -166,112 +196,291 @@ async def register_identity_services_user(
 
 async def login_user_in_identity_service(
     db: AsyncSession,
-    data: LoginRequest
+    data: LoginRequest,
 ) -> LoginResponse:
+    
 
-    email=str(data.email).lower().strip()
+    email = str(
+        data.email
+    ).lower().strip()
 
-    result=await db.execute(
+
+    # 1. Find user
+    result = await db.execute(
         select(User).where(
-            User.email==email
+            User.email == email
         )
     )
 
-    user=result.scalar_one_or_none()
+    user = result.scalar_one_or_none()
 
-    unauth=status.HTTP_401_UNAUTHORIZED
-    detail="Invalid email or password"
+    unauth = status.HTTP_401_UNAUTHORIZED
+    detail = "Invalid email or password"
 
     if user is None:
 
         raise HTTPException(
             status_code=unauth,
-            detail=detail
+            detail=detail,
         )
-    
-    detail2="user account is not active"
 
-    if user.status != UserStatus.ACTIVE:
+    # 2. User must be active
+    if user.status!=UserStatus.ACTIVE:
 
         raise HTTPException(
-            status_code=403,
-            detail=detail2
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is not active",
         )
 
-    result=await db.execute(
+    # 3. Find credential
+    result = await db.execute(
         select(Credential).where(
-            Credential.user_id==user.id
+            Credential.user_id == user.id
         )
     )
 
-    credential=result.scalar_one_or_none()
+    credential = result.scalar_one_or_none()
 
-    
     if credential is None:
-    
+
         raise HTTPException(
             status_code=unauth,
-            detail=detail
+            detail=detail,
         )
-        
-    detail3="Credential is not active"
-    
-    if credential.status != CredentialStatus.ACTIVE:
-    
+
+  
+    if credential.status!=CredentialStatus.ACTIVE:
+
         raise HTTPException(
-            status_code=403,
-            detail=detail3
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Credential is not active",
         )
 
 
     if not verify_password(
         data.password,
-        credential.password_hash
+        credential.password_hash,
     ):
 
         raise HTTPException(
-            status_code=401,
-            detail=detail
+            status_code=unauth,
+            detail=detail,
         )
 
-    session=Session(
+
+    result = await db.execute(
+        select(Verification).where(
+            Verification.user_id==user.id,
+            Verification.type==VerificationType.LOGIN_OTP,
+            Verification.status==VerificationStatus.PENDING,
+        )
+    )
+
+    pending_verifications=result.scalars().all()
+
+    for verification in pending_verifications:
+
+        verification.status = (
+            VerificationStatus.EXPIRED
+        )
+
+    # 7. Generate LOGIN OTP
+    otp, otp_hash = await create_otp(
+        user_id=str(user.id),
+        verification_type=VerificationType.LOGIN_OTP.value,
+        destination=user.email,
+    )
+
+    # 8. Store verification record
+    verification = Verification(
+        user_id=user.id,
+        type=VerificationType.LOGIN_OTP,
+        destination=user.email,
+        code_hash=otp_hash,
+        status=VerificationStatus.PENDING,
+        attempts=0,
+        max_attempts=5,
+        expires_at=(
+            datetime.now(timezone.utc)
+            + timedelta(
+                seconds=OTP_EXPIRE_SECONDS
+            )
+        ),
+    )
+
+    db.add(verification)
+
+    await db.commit()
+
+    
+    return LoginResponse(
+        message="Login verification code sent",
+        otp_required=True,
+    )
+
+
+
+
+async def verify_login_otp_identity_service(
+    db: AsyncSession,
+    data: LoginVerifyRequest,
+) -> LoginVerifyResponse:
+
+    email = str(
+        data.email
+    ).lower().strip()
+
+    # 1. Find user
+    result = await db.execute(
+        select(User).where(
+            User.email == email
+        )
+    )
+
+    user = result.scalar_one_or_none()
+
+    if user is None:
+
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid verification request",
+        )
+
+    
+    result = await db.execute(
+        select(Verification)
+        .where(
+            Verification.user_id == user.id,
+            Verification.type == VerificationType.LOGIN_OTP,
+            Verification.status == VerificationStatus.PENDING,
+        )
+        .order_by(
+            Verification.created_at.desc()
+        )
+        .limit(1)
+    )
+
+    verification = result.scalar_one_or_none()
+
+    if verification is None:
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No pending login verification found",
+        )
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    
+    if verification.expires_at <= now:
+
+        verification.status = (
+            VerificationStatus.EXPIRED
+        )
+
+        await db.commit()
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Login verification code expired",
+        )
+
+  
+    if verification.attempts >= verification.max_attempts:
+
+        verification.status = (
+            VerificationStatus.LOCKED
+        )
+
+        await db.commit()
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Too many verification attempts",
+        )
+
+   
+    valid = await check_otp(
+        verification_type=VerificationType.LOGIN_OTP.value,
+        destination=email,
+        otp=data.code,
+    )
+
+    if not valid:
+
+        verification.attempts += 1
+
+        if (
+            verification.attempts
+            >= verification.max_attempts
+        ):
+
+            verification.status = (
+                VerificationStatus.LOCKED
+            )
+
+        await db.commit()
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid login verification code",
+        )
+
+    
+    verification.status = (
+        VerificationStatus.VERIFIED
+    )
+
+    verification.verified_at = now
+
+   
+    session = Session(
         user_id=user.id,
         status=SessionStatus.ACTIVE,
         refresh_token_hash="temporary",
-        expires_at=datetime.now(
-            timezone.utc
-        ) + timedelta(
-            days=REFRESH_TOKEN_EXPIRE_DAYS
-        )
+        expires_at=(
+            now
+            + timedelta(
+                days=REFRESH_TOKEN_EXPIRE_DAYS
+            )
+        ),
     )
 
     db.add(session)
 
     await db.flush()
 
-    access_token=create_access_token(
+  
+    access_token = create_access_token(
         user_id=str(user.id),
-        session_id=str(session.id)
+        session_id=str(session.id),
     )
 
-    refresh_token=create_refresh_token(
+  
+    refresh_token = create_refresh_token(
         user_id=str(user.id),
-        session_id=str(session.id)
+        session_id=str(session.id),
     )
 
-    session.refresh_token_hash=hash_token(
+
+    session.refresh_token_hash = hash_token(
         token=refresh_token
     )
 
     await db.commit()
 
-    expries_in=ACCESS_TOKEN_EXPIRE_MINUTES*60
+    # 11. Return tokens
+    expires_in = (
+        ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    )
 
-    return LoginResponse(
+    return LoginVerifyResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         token_type="bearer",
-        expries_in=expries_in
+        expires_in=expires_in,
     )
 
 

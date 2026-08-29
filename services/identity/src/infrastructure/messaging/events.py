@@ -6,16 +6,17 @@ from src.infrastructure.messaging.rabbitmq import rabbitmq
 
 EXCHANGE_NAME="edtech.events"
 
-async def publish_email_verification_event(
+async def publish_verification_event(
     user_id:str,
     destination:str,
-    otp:str
+    otp:str,
+    verification_type:str
 ) -> None:
 
 
     event={
         "event_id":str(uuid.uuid4()),
-        "event_type":"identity.email_verification_requested",
+        "event_type":"identity.verification_requested",
         "occurred_at":datetime.now(
             timezone.utc
         ).isoformat(),
@@ -23,12 +24,13 @@ async def publish_email_verification_event(
         "data": {
             "user_id":user_id,
             "destination":destination,
-            "otp":otp
+            "otp":otp,
+            "verification_type":verification_type
         }
     }
 
     await rabbitmq.publish(
         exchange_name=EXCHANGE_NAME,
-        routing_key="identity.email_verification_requested",
+        routing_key="identity.verification_requested",
         message=event
     )

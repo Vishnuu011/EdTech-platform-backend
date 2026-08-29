@@ -14,6 +14,8 @@ async def lifespan(app: FastAPI):
 
     await rabbitmq.connect()
 
+    print("Rabbitmq started")
+
     await start_consumer()
 
     yield

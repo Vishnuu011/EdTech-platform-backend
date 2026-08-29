@@ -6,7 +6,7 @@ EXCHANGE_NAME="edtech.events"
 QUEUE_NAME="notification.email"
 
 EMAIL_VERIFICATION_ROUTING_KEY=(
-    "identity.email_verification_requested"
+    "identity.verification_requested"
 )
 
 class RabbitMQClient:

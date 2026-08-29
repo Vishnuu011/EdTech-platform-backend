@@ -9,8 +9,11 @@ from src.controller.authController import(
     LoginRequest,
     RefreshTokenRequest,
     RefreshTokenResponse,
+    LoginVerifyRequest,
+    LoginVerifyResponse,
     refresh_access_token_identity_service,
     register_identity_services_user,
+    verify_login_otp_identity_service,
     login_user_in_identity_service,
     logout_user_in_identity_service
 )
@@ -39,6 +42,8 @@ async def register_user(
     )
 
 
+
+
 @router.post(
     "/login",
     response_model=LoginResponse,
@@ -53,6 +58,25 @@ async def login_user(
         data=data,
         db=db
     )
+
+
+
+@router.post(
+    "/login/verify",
+    response_model=LoginVerifyResponse,
+    status_code=status.HTTP_200_OK
+)
+async def verify_login_otp(
+    data:LoginVerifyRequest,
+    db:AsyncSession=Depends(get_db)
+) -> LoginVerifyResponse:
+
+    return await verify_login_otp_identity_service(
+        db=db,
+        data=data
+    )
+
+
 
 
 @router.post(

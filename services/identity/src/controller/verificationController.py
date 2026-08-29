@@ -8,7 +8,7 @@ from src.helpers.otp import (
 )
 
 from src.infrastructure.redis.client import redis_client
-from src.infrastructure.messaging.events import publish_email_verification_event
+from src.infrastructure.messaging.events import publish_verification_event
 
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime, timedelta, timezone
@@ -58,6 +58,8 @@ def get_otp_key(
         f"{destination}"
     )
 
+
+
 def get_otp_cooldown_key(
     verification_type:str,
     destination:str
@@ -96,10 +98,11 @@ async def create_otp(
         ex=OTP_EXPIRE_SECONDS
     )
 
-    await publish_email_verification_event(
+    await publish_verification_event(
         user_id=user_id,
         destination=destination,
-        otp=otp
+        otp=otp,
+        verification_type=verification_type
     )
 
     return otp, otp_hash

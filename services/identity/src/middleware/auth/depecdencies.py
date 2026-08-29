@@ -97,13 +97,13 @@ async def get_current_user(
         session.status = SessionStatus.EXPIRED
         await db.commit()
 
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Session expired",
-        headers={
-            "WWW-Authenticate":"Bearer"
-        }
-    )    
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired",
+            headers={
+               "WWW-Authenticate":"Bearer"
+            }
+        )    
     # 6. Find user
     result = await db.execute(
         select(User).where(
