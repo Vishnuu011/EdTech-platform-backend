@@ -33,17 +33,20 @@ from src.helpers.jwt import (
 )
 
 from src.helpers.otp import (
-    OTP_EXPIRE_SECONDS
+    OTP_EXPIRE_SECONDS,
+    OTP_RESEND_COOLDOWN_SECOND
 )
 
 from src.controller.verificationController import (
     create_otp,
-    check_otp
+    check_otp,
+    get_otp_cooldown_key
 )
 
 from src.helpers.token import hash_token, verify_token_hash
 from src.helpers.password import verify_password
 from src.models.session import Session
+from src.infrastructure.redis.client import redis_client
 
 
 
@@ -267,6 +270,22 @@ async def login_user_in_identity_service(
             detail=detail,
         )
 
+    cooldown_key=get_otp_cooldown_key(
+        VerificationType.LOGIN_OTP.value,
+        user.email
+    )
+
+    if await redis_client.exists(cooldown_key):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Please wait before requesting another login code"
+        )
+
+    await redis_client.set(
+        cooldown_key,
+        "1",
+        ex=OTP_RESEND_COOLDOWN_SECOND
+    )
 
     result = await db.execute(
         select(Verification).where(

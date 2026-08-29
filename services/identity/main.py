@@ -2,22 +2,33 @@ from src.config.settings import settings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import time
+
 from src.routers import health
 from src.infrastructure.messaging.rabbitmq import rabbitmq
 from src.database.connection import engine
 from src.infrastructure.redis.client import redis_client
 from sqlalchemy import text
+
 from src.middleware.correlation.middlerware import CorrelationIDMiddleware
 from shared.observability.middleware import ObservabilityMiddleware
 from src.middleware.error import (
     register_exception_handlers
 )
-from shared.logging.logger import configure_logger, get_logger
+from shared.logging.logger import (
+    configure_logger, 
+    get_logger
+)
 
 from contextlib import asynccontextmanager
-import sys
-from pathlib import Path
-from src.routers import authRouter, verificationRouter, passwordResetRouter, userRouter, sessionRouter
+
+
+from src.routers import (
+    authRouter, 
+    verificationRouter, 
+    passwordResetRouter, 
+    userRouter, 
+    sessionRouter
+)
 
 
 configure_logger(
@@ -25,7 +36,11 @@ configure_logger(
     log_level="INFO"
 )
 
+
+
 logger=get_logger(__name__)
+
+
 
 async def check_database_connection():
     async with engine.connect() as conn:
@@ -33,8 +48,12 @@ async def check_database_connection():
         return result.scalar() == 1
 
 
+
+
 async def check_redis_connection():
     return await redis_client.ping()   
+
+
 
 
 async def check_rabbitmq_connection():
@@ -42,6 +61,8 @@ async def check_rabbitmq_connection():
         await rabbitmq.connect()
 
     return rabbitmq.is_connected 
+
+
 
 
 @asynccontextmanager
@@ -93,8 +114,6 @@ async def lifespan(app: FastAPI):
             "Identity-service shutdown complete"
         )
 
-    
-
 
 
 app=FastAPI(
@@ -110,12 +129,27 @@ register_exception_handlers(
     app=app
 )
 
+
 app.add_middleware(
     ObservabilityMiddleware
 )
 
+
 app.add_middleware(
     CorrelationIDMiddleware
+)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "X-Correlation_ID"
+    ]
 )
 
 
@@ -134,11 +168,13 @@ async def add_process_time_header(
 
 app.include_router(health.router)
 
+
 app.include_router(
     authRouter.router,
     prefix="/api/v1/auth",
     tags=["Authentication"]
 )
+
 
 app.include_router(
     verificationRouter.router,
@@ -146,11 +182,13 @@ app.include_router(
     tags=["Verification"]
 )
 
+
 app.include_router(
     passwordResetRouter.router,
     prefix="/api/v1/password-reset",
     tags=["Password Reset"]
 )
+
 
 app.include_router(
     userRouter.router,
@@ -158,14 +196,12 @@ app.include_router(
     tags=["Users"]
 )
 
+
 app.include_router(
     sessionRouter.router,
     prefix="/api/v1/sessions",
     tags=["Sessions"]
 )
-
-
-
 
 
 if __name__ == "__main__":
