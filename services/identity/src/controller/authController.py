@@ -63,6 +63,8 @@ class LoginRequest(BaseModel):
         max_length=128
     )
 
+    
+
 class LoginResponse(BaseModel):
 
     access_token:str
@@ -71,8 +73,12 @@ class LoginResponse(BaseModel):
     expries_in:int    
 
 
+
+
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
+
+
 
 class RefreshTokenResponse(BaseModel):
 
@@ -80,6 +86,8 @@ class RefreshTokenResponse(BaseModel):
     refresh_token: str
     token_type: str
     expires_in: int    
+
+
 
 
 
@@ -150,6 +158,8 @@ async def register_identity_services_user(
         email=user.email,
         status=user.status
     )
+
+
 
 
 
@@ -267,6 +277,8 @@ async def login_user_in_identity_service(
 
 
 
+
+
 async def refresh_access_token_identity_service(
     db: AsyncSession,
     data: RefreshTokenRequest
@@ -332,6 +344,27 @@ async def refresh_access_token_identity_service(
             detail="session expired"
         )
 
+    result=await db.execute(
+        select(User).where(
+            User.id==user_id
+        )
+    )
+
+    user=result.scalar_one_or_none()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+
+    if user.status!=UserStatus.ACTIVE:
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is not active"
+        )
+
     if not verify_token_hash(
         data.refresh_token,
         session.refresh_token_hash
@@ -366,6 +399,9 @@ async def refresh_access_token_identity_service(
         token_type="bearer",
         expires_in=expires_in
     )
+
+
+
 
 
 

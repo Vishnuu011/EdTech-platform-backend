@@ -17,7 +17,7 @@ from shared.logging.logger import configure_logger, get_logger
 from contextlib import asynccontextmanager
 import sys
 from pathlib import Path
-from src.routers import authRouter, verificationRouter, passwordResetRouter
+from src.routers import authRouter, verificationRouter, passwordResetRouter, userRouter, sessionRouter
 
 
 configure_logger(
@@ -150,6 +150,18 @@ app.include_router(
     passwordResetRouter.router,
     prefix="/api/v1/password-reset",
     tags=["Password Reset"]
+)
+
+app.include_router(
+    userRouter.router,
+    prefix="/api/v1/users",
+    tags=["Users"]
+)
+
+app.include_router(
+    sessionRouter.router,
+    prefix="/api/v1/sessions",
+    tags=["Sessions"]
 )
 
 

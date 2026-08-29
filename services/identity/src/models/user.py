@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.database.base import Base
-from src.domain.enums import UserStatus
+from src.domain.enums import UserStatus, UserRole
 from src.models.mixins import TimestampMixin
 
 
@@ -45,4 +45,13 @@ class User(TimestampMixin, Base):
         ),
         nullable=False,
         default=UserStatus.PENDING
+    )
+
+    role: Mapped[UserRole]=mapped_column(
+        SAEnum(
+            UserRole,
+            name="user_role",
+        ),
+        nullable=False,
+        default=UserRole.STUDENT
     )

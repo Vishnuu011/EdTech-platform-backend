@@ -37,3 +37,13 @@ class SessionStatus(str, Enum):
     ACTIVE="ACTIVE"
     EXPIRED="EXPIRED"
     REVOKED="REVOKED"    
+
+
+class UserRole(str, Enum):
+
+    STUDENT="STUDENT"
+    TEACHER="TEACHER"
+    ADMIN="ADMIN"
+
+
+    

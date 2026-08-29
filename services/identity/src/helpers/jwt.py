@@ -49,7 +49,7 @@ def create_refresh_token(
         "type": "refresh",
         "iat": now,
         "exp": now+timedelta(
-            minutes=REFRESH_TOKEN_EXPIRE_DAYS
+            days=REFRESH_TOKEN_EXPIRE_DAYS
         )
     }
 
