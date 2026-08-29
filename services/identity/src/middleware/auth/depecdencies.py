@@ -2,6 +2,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
 from sqlalchemy import select
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.session import get_db
@@ -92,6 +93,17 @@ async def get_current_user(
             },
         )
 
+    if session.expires_at <= datetime.now(timezone.utc):
+        session.status = SessionStatus.EXPIRED
+        await db.commit()
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Session expired",
+        headers={
+            "WWW-Authenticate":"Bearer"
+        }
+    )    
     # 6. Find user
     result = await db.execute(
         select(User).where(
