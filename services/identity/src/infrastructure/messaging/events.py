@@ -13,6 +13,31 @@ async def publish_verification_event(
     verification_type:str
 ) -> None:
 
+    """
+    Publish an identity verification event to RabbitMQ.
+
+    Creates an event containing a unique event ID, event type,
+    occurrence timestamp, source service, and verification data.
+    The event is published to the shared EdTech events exchange
+    using the identity verification routing key.
+
+    Args:
+        user_id: Unique identifier of the user requesting verification.
+        destination: Verification destination, such as the user's
+            email address.
+        otp: One-time verification code to be delivered to the user.
+        verification_type: Type of verification being requested,
+            such as email verification, login OTP, or password reset.
+
+    Returns:
+        None: The function publishes the event asynchronously and
+        does not return a value.
+
+    Raises:
+        Exception: Propagates messaging-related exceptions when
+            the event cannot be published to RabbitMQ.
+    """
+
 
     event={
         "event_id":str(uuid.uuid4()),

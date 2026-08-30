@@ -27,14 +27,51 @@ from src.controller.verificationController import (
 )
 
 
-RESET_TOKEN_EXPRIRE_SECONDS=600
+
+
+
+RESET_TOKEN_EXPIRE_SECONDS = 600
+
+
 
 def get_reset_token_key(token: str) -> str:
+
+    """
+    Generate the Redis key used to store a password reset token.
+
+    Args:
+        token: Password reset token.
+
+    Returns:
+        str: Redis key associated with the password reset token.
+    """
 
     return f"identity:password-reset:{token}"
 
 
+
+
+
 async def create_reset_token(user_id:str) -> str:
+
+    """
+    Generate and store a temporary password reset token.
+
+    A cryptographically secure random token is generated and stored
+    in Redis with the associated user ID. The token automatically
+    expires after the configured reset-token lifetime.
+
+    Args:
+        user_id: Unique identifier of the user requesting the
+            password reset.
+
+    Returns:
+        str: Newly generated password reset token.
+
+    Raises:
+        Exception: Propagates Redis errors if the token cannot
+            be stored.
+    """
 
     token = secrets.token_urlsafe(32)
 
@@ -43,25 +80,40 @@ async def create_reset_token(user_id:str) -> str:
     await redis_client.set(
         key,
         user_id,
-        ex=RESET_TOKEN_EXPRIRE_SECONDS
+        ex=RESET_TOKEN_EXPIRE_SECONDS
     )
 
     return token
 
 
 
+
+##########################################################################################
+
+
 class PasswordResetRequest(BaseModel):
 
+    """Request payload for initiating a password reset."""
+
     email: EmailStr
+
+
+
 
 class PasswordResetResponse(BaseModel):
 
+    """Response returned after requesting a password reset."""
+
     message: str
+
+
+
 
 class PasswordResetVerifyRequest(BaseModel):
 
+    """Request payload for verifying a password reset OTP."""
+
     email: EmailStr
-    
     code:str=Field(
         min_length=6,
         max_length=6,
@@ -72,12 +124,16 @@ class PasswordResetVerifyRequest(BaseModel):
 
 class PasswordResetVerifyResponse(BaseModel):
 
+    """Response returned after successful password reset OTP verification."""
+
     message: str   
     reset_token: str 
 
 
 
 class PasswordResetConfirmRequest(BaseModel):
+
+    """Request payload for setting a new password."""
 
     reset_token:str
     new_password: str=Field(
@@ -88,9 +144,12 @@ class PasswordResetConfirmRequest(BaseModel):
 
 class PasswordResetConfirmResponse(BaseModel):
 
+    """Response returned after successfully resetting a password."""
+
     message: str
 
 
+#############################################################################################
 
 
 
@@ -99,6 +158,29 @@ async def request_password_reset_identity_service(
     data:PasswordResetRequest,
     db:AsyncSession
 ) -> PasswordResetResponse:
+
+    """
+    Initiate the password reset process for a user.
+
+    The function verifies that the user exists, enforces the OTP
+    resend cooldown, expires previous pending password reset
+    verifications, generates a new OTP, stores the verification
+    record, and publishes the OTP through the verification event
+    system.
+
+    Args:
+        data: Request containing the user's email address.
+        db: Asynchronous SQLAlchemy database session.
+
+    Returns:
+        PasswordResetResponse: Confirmation that the password reset
+        code was sent.
+
+    Raises:
+        HTTPException: 404 Not Found when the user does not exist.
+        HTTPException: 429 Too Many Requests when the OTP resend
+            cooldown is active.
+    """
 
     result=await db.execute(
         select(User).where(
@@ -181,6 +263,31 @@ async def verify_password_reset_identity_service(
     data: PasswordResetVerifyRequest,
     db: AsyncSession,
 ) -> PasswordResetVerifyResponse:
+
+    """
+    Verify a password reset OTP and issue a temporary reset token.
+
+    The function retrieves the latest pending password reset
+    verification, validates its expiration and attempt limit,
+    verifies the OTP, marks the verification as completed, and
+    generates a temporary password reset token.
+
+    Args:
+        data: Request containing the user's email address and
+            password reset OTP.
+        db: Asynchronous SQLAlchemy database session.
+
+    Returns:
+        PasswordResetVerifyResponse: Contains a temporary reset token
+        that can be used to set a new password.
+
+    Raises:
+        HTTPException: 404 Not Found when the user does not exist.
+        HTTPException: 400 Bad Request when no pending reset exists,
+            the OTP has expired, maximum attempts have been exceeded,
+            or the OTP is invalid.
+    """
+
 
     result = await db.execute(
         select(User).where(
@@ -285,6 +392,30 @@ async def confirm_password_reset_identity_service(
     db: AsyncSession,
 ) -> PasswordResetConfirmResponse:
 
+    """
+    Set a new password using a valid password reset token.
+
+    The function validates the temporary reset token stored in Redis,
+    retrieves the associated user and credential, hashes and updates
+    the new password, revokes all active sessions, consumes the reset
+    token, and commits the changes to the database.
+
+    Args:
+        data: Request containing the temporary reset token and
+            the user's new password.
+        db: Asynchronous SQLAlchemy database session.
+
+    Returns:
+        PasswordResetConfirmResponse: Confirmation that the password
+        reset was completed successfully.
+
+    Raises:
+        HTTPException: 401 Unauthorized when the reset token is
+            invalid or expired.
+        HTTPException: 404 Not Found when the associated user or
+            credential cannot be found.
+    """
+
     # 1. Find reset token in Redis
     key=get_reset_token_key(
         data.reset_token
@@ -366,7 +497,7 @@ async def confirm_password_reset_identity_service(
     await db.commit()
 
     return PasswordResetConfirmResponse(
-        message="Password reset successful",
+        message="Password resent successful",
     )
 
 

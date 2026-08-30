@@ -29,6 +29,33 @@ async def get_current_user(
     ),
 ) -> User:
 
+    """
+    Authenticate the current request and return the authenticated user.
+
+    The function validates the access token, verifies that the token
+    represents an access token, extracts the user and session IDs,
+    validates the associated session, checks session expiration, and
+    ensures that the user account is active.
+
+    This dependency can be used on protected endpoints to require
+    authentication.
+
+    Args:
+        token: Bearer access token extracted from the Authorization
+            header.
+        db: Asynchronous SQLAlchemy database session.
+
+    Returns:
+        User: The authenticated and active user.
+
+    Raises:
+        HTTPException: 401 Unauthorized when the access token is
+            invalid, expired, malformed, associated with a missing
+            session, or the session is inactive or expired.
+        HTTPException: 403 Forbidden when the user account is
+            not active.
+    """
+
     # 1. Decode access token
     try:
         payload = decode_token(token)

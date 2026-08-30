@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, status
 from services.identity.src.middleware.auth.dependencies import get_current_user
-from src.middleware.auth.roles import require_role
+
 from src.models.user import User
-from src.domain.enums import UserRole
+
 
 
 router=APIRouter()
@@ -14,6 +14,25 @@ async def get_me(
         get_current_user
     )
 ):
+
+    """
+    Retrieve the profile of the currently authenticated user.
+
+    The authenticated user is resolved from the access token using
+    the authentication dependency.
+
+    Args:
+        current_user: Authenticated user obtained from the access token.
+
+    Returns:
+        dict: Basic profile information including the user's ID,
+        email, display name, account status, and role.
+
+    Raises:
+        HTTPException: 401 Unauthorized if the access token is
+            missing, invalid, expired, or the user cannot be found.
+    """
+
 
     return {
         "user_id":str(current_user.id),

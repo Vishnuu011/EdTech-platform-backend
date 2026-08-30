@@ -23,27 +23,45 @@ from src.models.verification import Verification
 
 
 
+######################################################################################
 
 class SendVerificationRequest(BaseModel):
+
+    """Request payload for sending an email verification OTP."""
+
     email: EmailStr
 
+
+
 class SendVerificationResponse(BaseModel):
+
+    """Response returned after successfully sending a verification OTP."""
+
     message:str
+
+
 
 class VerifyVerificationRequest(BaseModel):
 
+    """Request payload for verifying an email verification OTP."""
+
     email: EmailStr
     code: str = Field(
-        min_length=6,
-        max_length=6,
+        min_length=OTP_LENGTH,
+        max_length=OTP_LENGTH,
         pattern=r"^\d{6}$"
     )   
 
+
+
 class VerifyVerificationResponse(BaseModel):
+
+    """Response returned after successfully verifying an email address."""
 
     message: str
    
 
+###########################################################################################
         
 
 
@@ -51,6 +69,19 @@ def get_otp_key(
     verification_type:str,
     destination:str
 ) -> str:
+
+    """
+    Generate the Redis key used to store an OTP hash.
+
+    Args:
+        verification_type: Type of verification, such as email
+            verification or login OTP.
+        destination: OTP destination, typically the user's email
+            address or phone number.
+
+    Returns:
+        str: Redis key used to store and retrieve the OTP hash.
+    """
 
     return (
         f"identity:otp:"
@@ -64,6 +95,19 @@ def get_otp_cooldown_key(
     verification_type:str,
     destination:str
 ) -> str:
+
+    """
+    Generate the Redis key used to enforce OTP resend cooldowns.
+
+    Args:
+        verification_type: Type of verification associated with
+            the OTP.
+        destination: OTP destination, such as an email address
+            or phone number.
+
+    Returns:
+        str: Redis key used to track the OTP resend cooldown.
+    """
 
     return (
         f"identity:otp:cooldown:"
@@ -80,6 +124,26 @@ async def create_otp(
     verification_type: str,
     destination: str
 ) -> str:
+
+    """
+    Generate, hash, store, and publish a one-time password.
+
+    The generated OTP is hashed before being stored in Redis. The
+    plaintext OTP is published through the verification event system
+    so that a downstream service can deliver it to the user.
+
+    Args:
+        user_id: Unique identifier of the user receiving the OTP.
+        verification_type: Type of verification associated with the OTP.
+        destination: Destination where the OTP will be delivered.
+
+    Returns:
+        tuple[str, str]: The plaintext OTP and its hashed value.
+
+    Raises:
+        Exception: Propagates Redis or messaging errors if storing
+            the OTP or publishing the verification event fails.
+    """
 
     otp=generate_otp()
 
@@ -117,6 +181,23 @@ async def check_otp(
     otp:str
 ) -> bool:
 
+    """
+    Validate an OTP stored in Redis.
+
+    The function retrieves the hashed OTP from Redis, verifies the
+    supplied OTP against the stored hash, and deletes the Redis OTP
+    after successful verification to prevent reuse.
+
+    Args:
+        verification_type: Type of verification associated with the OTP.
+        destination: Destination associated with the OTP.
+        otp: Plaintext OTP submitted by the user.
+
+    Returns:
+        bool: True if the OTP is valid and successfully consumed;
+        otherwise False.
+    """
+
     key=get_otp_key(
         verification_type,
         destination
@@ -149,6 +230,28 @@ async def send_verification_Otp(
     data:SendVerificationRequest,
     db:AsyncSession
 ) -> SendVerificationResponse:
+
+    """
+    Send an email verification OTP to a registered user.
+
+    The function verifies that the user exists, checks the OTP resend
+    cooldown, expires any existing pending verification records,
+    generates and stores a new OTP, publishes the verification event,
+    and creates a new database verification record.
+
+    Args:
+        data: Request containing the user's email address.
+        db: Asynchronous SQLAlchemy database session.
+
+    Returns:
+        SendVerificationResponse: Confirmation that the verification
+        code was sent successfully.
+
+    Raises:
+        HTTPException: 404 Not Found if the user does not exist.
+        HTTPException: 429 Too Many Requests if the OTP resend
+            cooldown is still active.
+    """
 
     result=await db.execute(
         select(User).where(
@@ -233,6 +336,30 @@ async def verify_verification(
     data: VerifyVerificationRequest,
     db: AsyncSession,
 ) -> VerifyVerificationResponse:
+
+    """
+    Verify an email verification OTP and activate the user account.
+
+    The function retrieves the latest pending email verification,
+    checks expiration and maximum verification attempts, validates
+    the OTP stored in Redis, marks the verification as completed,
+    and changes the user's account status to active.
+
+    Args:
+        data: Request containing the user's email address and
+            six-digit verification code.
+        db: Asynchronous SQLAlchemy database session.
+
+    Returns:
+        VerifyVerificationResponse: Confirmation that email
+        verification was successful.
+
+    Raises:
+        HTTPException: 404 Not Found if the user does not exist.
+        HTTPException: 400 Bad Request if there is no pending
+            verification, the verification code has expired,
+            maximum attempts have been exceeded, or the OTP is invalid.
+    """
 
     
     result = await db.execute(

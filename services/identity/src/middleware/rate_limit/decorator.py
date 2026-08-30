@@ -45,6 +45,64 @@ def rate_limit(
     key_prefix: str,
     key_fields: list[str] | None = None,
 ):
+
+    """
+    Apply a Redis-backed rate limit to an asynchronous endpoint.
+
+    The decorator creates a rate-limit key using the configured
+    prefix, client IP address, and optionally one or more fields
+    from the endpoint arguments.
+
+    Rate-limit state is stored in Redis and consumed through an
+    atomic Redis operation. When the request limit is exceeded,
+    the endpoint returns HTTP 429 with a ``Retry-After`` header
+    indicating when the current rate-limit window is expected
+    to expire.
+
+    Args:
+        limit: Maximum number of requests allowed during the
+            configured time window.
+        window_seconds: Duration of the rate-limit window in seconds.
+        key_prefix: Prefix used to namespace the Redis rate-limit key.
+            Example: ``"login"``.
+        key_fields: Optional list of argument paths used to create
+            a more specific rate-limit key.
+
+            Examples:
+                ``["data.email"]``
+                ``["data.email", "data.phone"]``
+
+            Nested fields are resolved from the endpoint's bound
+            arguments.
+
+    Returns:
+        Callable: A decorator that applies rate limiting to an
+        asynchronous endpoint.
+
+    Raises:
+        RuntimeError: If the decorated endpoint does not contain
+            a ``Request`` parameter or a configured key field cannot
+            be found.
+
+    Raises:
+        HTTPException: 429 Too Many Requests when the configured
+            request limit has been exceeded.
+
+    Example:
+        @rate_limit(
+            limit=5,
+            window_seconds=300,
+            key_prefix="login-verify",
+            key_fields=["data.email"],
+        )
+        async def verify_login(
+            request: Request,
+            data: LoginVerifyRequest,
+        ):
+            ...
+    """
+
+    
     def decorator(func):
 
         sig = signature(func)

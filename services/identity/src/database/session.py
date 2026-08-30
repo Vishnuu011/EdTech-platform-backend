@@ -18,6 +18,20 @@ SessionLocal = async_sessionmaker(
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
+    """
+    Provide an asynchronous SQLAlchemy database session.
+
+    Creates a database session for the lifetime of a FastAPI request.
+    The session is automatically closed when the request finishes.
+
+    If an exception occurs while processing the request, the current
+    transaction is rolled back and the exception is propagated to
+    FastAPI.
+
+    Yields:
+        AsyncSession: An asynchronous SQLAlchemy database session.
+    """
+
     async with SessionLocal() as session:
 
         try:
