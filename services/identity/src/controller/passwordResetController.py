@@ -112,7 +112,7 @@ async def request_password_reset_identity_service(
 
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            detail="If an account exists, a password reset code has been sent"
         )
 
     cooldown_key=get_otp_cooldown_key(

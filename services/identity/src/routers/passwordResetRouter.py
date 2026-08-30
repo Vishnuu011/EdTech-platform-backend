@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.session import get_db
 
-from src.controller.password_reset_controller import (
+from services.identity.src.controller.passwordResetController import (
     PasswordResetResponse,
     PasswordResetVerifyResponse,
     PasswordResetVerifyRequest,

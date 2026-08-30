@@ -9,7 +9,7 @@ class AppException(Exception):
         self,
         message: str,
         code: str,
-        status_code: status,
+        status_code: int,
         details: Any | None = None
     ) -> None:
         self.message = message

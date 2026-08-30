@@ -3,7 +3,7 @@ from inspect import signature
 
 from fastapi import HTTPException, Request, status
 
-from src.middleware.rate_limit.limiter import (
+from services.identity.src.middleware.rate_limit.service import (
     consume_rate_limit,
 )
 

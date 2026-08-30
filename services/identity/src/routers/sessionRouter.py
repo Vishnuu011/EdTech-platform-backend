@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, Path, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.session import get_db
-from src.middleware.auth.depecdencies import get_current_user
+from services.identity.src.middleware.auth.dependencies import get_current_user
 from src.models.user import User
 
 from src.controller.sessionController import get_user_sessions, revoke_all_user_sessions, revoke_user_session
