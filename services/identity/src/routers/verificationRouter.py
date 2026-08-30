@@ -11,6 +11,8 @@ from src.controller.verificationController import (
 
 )
 
+from src.middleware.rate_limit.decorator import rate_limit
+
 
 router=APIRouter()
 
@@ -19,6 +21,12 @@ router=APIRouter()
     "/send",
     response_model=SendVerificationResponse,
     status_code=status.HTTP_202_ACCEPTED
+)
+@rate_limit(
+    limit=2,
+    window_seconds=300,
+    key_prefix="verification-send",
+    key_fields=["data.email"]
 )
 async def send_verification(
     data:SendVerificationRequest,
@@ -31,10 +39,16 @@ async def send_verification(
     )
 
 
+
 @router.post(
     "/verify",
     response_model=VerifyVerificationResponse,
     status_code=status.HTTP_200_OK
+)
+@rate_limit(
+    limit=5,
+    window_seconds=300,
+    key_prefix="verification-verify"
 )
 async def verify_otp(
     data:VerifyVerificationRequest,

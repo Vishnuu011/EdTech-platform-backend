@@ -50,6 +50,9 @@ from src.infrastructure.redis.client import redis_client
 
 
 
+
+
+##########################################################################
 class RegisterRequest(BaseModel):
 
     email:EmailStr
@@ -120,7 +123,7 @@ class RefreshTokenResponse(BaseModel):
     token_type: str
     expires_in: int    
 
-
+##############################################################################
 
 
 

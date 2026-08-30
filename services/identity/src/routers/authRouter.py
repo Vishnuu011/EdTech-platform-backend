@@ -1,4 +1,12 @@
-from fastapi import APIRouter, Depends, Header, status, HTTPException
+from fastapi import (
+    APIRouter, 
+    Depends, 
+    Header, 
+    status, 
+    HTTPException, 
+    Request
+)
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security import OAuth2PasswordBearer
 
@@ -19,9 +27,14 @@ from src.controller.authController import(
 )
 
 from src.database.session import get_db
+from src.middleware.rate_limit.decorator import rate_limit
+
+
 
 
 router=APIRouter()
+
+
 
 
 @router.post(
@@ -44,12 +57,19 @@ async def register_user(
 
 
 
+
 @router.post(
     "/login",
     response_model=LoginResponse,
     status_code=status.HTTP_200_OK
 )
+@rate_limit(
+    limit=1,
+    window_seconds=60,
+    key_prefix="login"
+)
 async def login_user(
+    request: Request,
     data:LoginRequest,
     db:AsyncSession=Depends(get_db)
 ) -> LoginResponse:
@@ -66,7 +86,14 @@ async def login_user(
     response_model=LoginVerifyResponse,
     status_code=status.HTTP_200_OK
 )
+@rate_limit(
+    limit=5,
+    window_seconds=300,
+    key_prefix="login-verify",
+    key_fields=["data.email"]
+)
 async def verify_login_otp(
+    request: Request,
     data:LoginVerifyRequest,
     db:AsyncSession=Depends(get_db)
 ) -> LoginVerifyResponse:

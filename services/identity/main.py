@@ -10,6 +10,7 @@ from src.infrastructure.redis.client import redis_client
 from sqlalchemy import text
 
 from src.middleware.correlation.middlerware import CorrelationIDMiddleware
+from src.middleware.security.headers import SecurityHeadersMiddleware
 from shared.observability.middleware import ObservabilityMiddleware
 from src.middleware.error import (
     register_exception_handlers
@@ -35,8 +36,6 @@ configure_logger(
     service_name="identity-service",
     log_level="INFO"
 )
-
-
 
 logger=get_logger(__name__)
 
@@ -129,6 +128,33 @@ register_exception_handlers(
     app=app
 )
 
+cors_origins=[
+    origin.strip()
+    for origin in settings.CORS_ORIGINS.split(",")
+    if origin.strip()
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=True,
+    allow_methods=[
+        "GET", "POST", 
+        "PUT", "PATCH", 
+        "DELETE", "OPTIONS"
+    ],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "X-Correlation-ID"
+    ]
+)
+
+
+
+app.add_middleware(
+    SecurityHeadersMiddleware
+)
 
 app.add_middleware(
     ObservabilityMiddleware
@@ -137,19 +163,6 @@ app.add_middleware(
 
 app.add_middleware(
     CorrelationIDMiddleware
-)
-
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allow_headers=[
-        "Authorization",
-        "Content-Type",
-        "X-Correlation_ID"
-    ]
 )
 
 

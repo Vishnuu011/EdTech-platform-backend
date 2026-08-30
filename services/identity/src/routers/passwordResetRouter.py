@@ -15,6 +15,8 @@ from src.controller.password_reset_controller import (
     confirm_password_reset_identity_service
 )
 
+from src.middleware.rate_limit.decorator import rate_limit
+
 
 
 router=APIRouter()
@@ -23,6 +25,12 @@ router=APIRouter()
     "/request",
     response_model=PasswordResetResponse,
     status_code=status.HTTP_202_ACCEPTED
+)
+@rate_limit(
+    limit=2,
+    window_seconds=600,
+    key_prefix="password-reset",
+    key_fields=["data.email"]
 )
 async def password_reset_request(
     data:PasswordResetRequest,

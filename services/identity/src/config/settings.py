@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     JWT_SECRET: str
     JWT_ALGORITHM: str
 
-    CORS_ORIGINS: list[str]=["*"]
+    CORS_ORIGINS:str=""
 
     model_config = SettingsConfigDict(
         env_file=Path(__file__).parent.parent.parent / ".env",
