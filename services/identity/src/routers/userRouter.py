@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, status
-from services.identity.src.middleware.auth.dependencies import get_current_user
+from src.middleware.auth.dependencies import get_current_user
 
 from src.models.user import User
 

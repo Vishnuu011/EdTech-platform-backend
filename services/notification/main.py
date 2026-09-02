@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from src.infrastructure.messaging.rabbitmq import rabbitmq
 from src.infrastructure.messaging.consumer import start_consumer
 from src.config.settings import settings
+from src.routers.health import router
 
 
 
@@ -29,6 +30,8 @@ app=FastAPI(
     lifespan=lifespan
 )    
 
+
+app.include_router(router)
 
 
 if __name__ == "__main__":

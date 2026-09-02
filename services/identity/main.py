@@ -217,6 +217,19 @@ app.include_router(
 )
 
 
+@app.get("/", status_code=200)
+async def root():
+    return {
+        "message": "🤗 Welcome to the Identity Service for EdTech Platform Backend API 🤗",
+        "version": settings.APP_VERSION,
+        "status": "⚙️ running......",
+        "documentation": "🌐 /docs",
+        "health_check": "🌐 /health/ready or /health/live",
+
+    }
+
+
+
 if __name__ == "__main__":
 
     import uvicorn

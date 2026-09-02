@@ -3,7 +3,7 @@ from collections.abc import Callable
 from fastapi import Depends, HTTPException, status
 
 from src.domain.enums import UserRole
-from services.identity.src.middleware.auth.dependencies import get_current_user
+from src.middleware.auth.dependencies import get_current_user
 from src.models.user import User
 
 
